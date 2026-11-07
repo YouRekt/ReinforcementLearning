@@ -73,7 +73,7 @@ class HeuristicPolicy:
 
 
 def make_policy(spec: str, env, seed: int = 0, **env_kwargs):
-    """'random' | 'heuristic' -> callable obs dict -> action dict.
+    """'random' | 'heuristic' | 'mappo:<checkpoint.pt>' -> callable obs dict -> action dict.
 
     `env_kwargs` are the counts passed to make_env (needed for observation offsets).
     """
@@ -81,6 +81,9 @@ def make_policy(spec: str, env, seed: int = 0, **env_kwargs):
         return RandomPolicy(env, seed)
     if spec == "heuristic":
         return HeuristicPolicy(seed=seed, **env_kwargs)
+    if spec.startswith("mappo:"):
+        from worldcomm.mappo import load_actor_policy
+        return load_actor_policy(spec.split(":", 1)[1])
     raise ValueError(f"unknown policy spec {spec!r}")
 
 
