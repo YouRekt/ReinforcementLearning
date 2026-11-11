@@ -3,7 +3,7 @@
 # Two runs at a time (7 env workers each); finished runs (with final.pt) are skipped.
 #   caffeinate -i bash scripts/sweep.sh        # macOS: keep the machine awake
 # Override the defaults with env vars, e.g.:
-#   CONFIGS="mappo_h128 ippo_h128" SEEDS="0 1" caffeinate -i bash scripts/sweep.sh
+#   CONFIGS="v2_mappo v2_food v2_entropy v2_food_entropy" SEEDS="0 1" caffeinate -i bash scripts/sweep.sh
 set -u
 cd "$(dirname "$0")/.."
 args_of() {  # bash 3 (macOS) has no associative arrays
@@ -13,6 +13,12 @@ args_of() {  # bash 3 (macOS) has no associative arrays
     mappo_h64)    echo "--hidden 64 --layers 2 --critic central" ;;
     mappo_h256)   echo "--hidden 256 --layers 2 --critic central" ;;
     mappo_h256x3) echo "--hidden 256 --layers 3 --critic central" ;;
+    v2_mappo)        echo "--hidden 128 --layers 2 --critic central" ;;
+    v2_long)         echo "--hidden 128 --layers 2 --critic central" ;;  # run with STEPS=1e8
+    v2_mix)          echo "--hidden 128 --layers 2 --critic central --prey-vs-heuristic 0.5" ;;  # run with STEPS=1e8
+    v2_food)         echo "--hidden 128 --layers 2 --critic central --food-shaping 2" ;;
+    v2_entropy)      echo "--hidden 128 --layers 2 --critic central --entropy-good 0.03" ;;
+    v2_food_entropy) echo "--hidden 128 --layers 2 --critic central --food-shaping 2 --entropy-good 0.03" ;;
     *) echo "unknown config $1" >&2; exit 1 ;;
   esac
 }
