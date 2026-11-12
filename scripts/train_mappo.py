@@ -30,6 +30,8 @@ def main():
     p.add_argument("--lr", type=float, default=7e-4)
     p.add_argument("--entropy", type=float, default=0.01)
     p.add_argument("--entropy-good", type=float, default=None, help="entropy coefficient for prey only")
+    p.add_argument("--prey-vs-heuristic", type=float, default=0.0,
+                   help="self-play: fraction of iterations where prey train against heuristic predators")
     p.add_argument("--food-shaping", type=float, default=0.0, help="training-only reward for prey approaching food")
     p.add_argument("--epochs", type=int, default=10)
     p.add_argument("--eval-every", type=int, default=25)
@@ -40,7 +42,7 @@ def main():
 
     cfg = Config(total_steps=int(args.steps), n_envs=args.envs, n_workers=args.workers,
                  train_teams=tuple(args.train), opponent=args.opponent, seed=args.seed, lr=args.lr,
-                 entropy_coef=args.entropy, entropy_good=args.entropy_good, food_shaping=args.food_shaping, epochs=args.epochs, eval_every=args.eval_every,
+                 entropy_coef=args.entropy, entropy_good=args.entropy_good, food_shaping=args.food_shaping, prey_vs_heuristic=args.prey_vs_heuristic, epochs=args.epochs, eval_every=args.eval_every,
                  hidden=args.hidden, layers=args.layers, critic=args.critic)
     out = ROOT / "runs" / args.run
     out.mkdir(parents=True, exist_ok=True)

@@ -50,6 +50,7 @@ class Config:
     entropy_coef: float = 0.01
     entropy_good: float | None = None  # entropy coefficient of the prey actor (None = entropy_coef)
     food_shaping: float = 0.0          # training-only bonus for prey moving toward food: c * (d - gamma * d')
+    prey_vs_heuristic: float = 0.0     # self-play: fraction of iterations where prey face heuristic predators
     value_coef: float = 1.0
     huber_delta: float = 10.0
     max_grad_norm: float = 10.0
@@ -223,6 +224,8 @@ class MAPPO:
         counts = {k: v for k, v in cfg.env_kwargs.items() if k != "max_cycles"}
         self.food_slice = HeuristicPolicy(**counts).food
         self.iteration, self.env_steps, self.episode_seed = 0, 0, cfg.seed * 10_000_000
+        self.mix_rng = np.random.default_rng(cfg.seed + 777)
+        self.heur_adv = FixedTeam("heuristic", self.teams["adv"], v.act_dims, cfg.env_kwargs, cfg.seed + 1)
 
     # ---------------------------------------------------------------- rollout
     def critic_input(self, team, states, obs, t):
@@ -243,9 +246,10 @@ class MAPPO:
         v = self.critics[team](self.critic_input(team, states, obs, t)).squeeze(-1).numpy()
         return self.vnorm[team].denormalize(v)
 
-    def collect(self, opponent=None, deterministic=False):
+    def collect(self, opponent=None, deterministic=False, learn=None):
         """One batch of episodes (n_envs x T). Returns buffers and finished-episode stats."""
         cfg, v = self.cfg, self.venv
+        learn = opponent is None if learn is None else learn
         seeds = self.episode_seed + np.arange(cfg.n_envs)
         self.episode_seed += cfg.n_envs
         obs, states = v.reset(seeds)
@@ -266,7 +270,7 @@ class MAPPO:
             if fixed is not None:
                 for name, a in fixed(obs).items():
                     actions[:, self.idx[name]] = a
-            if opponent is None:  # evaluation only needs episode stats, not values
+            if learn:  # evaluation only needs episode stats, not values
                 for team in self.critics:
                     buf["values"][team].append(self.values(team, states, obs, t))
             buf["obs"].append(obs)
@@ -275,7 +279,7 @@ class MAPPO:
             buf["logp"].append(logp)
             prev = obs
             obs, states, rews, finished = v.step(actions)
-            if opponent is None and cfg.food_shaping:
+            if learn and cfg.food_shaping:
                 rews = rews + self.shaping(prev, obs)
             buf["rewards"].append(rews)
             episodes += finished
@@ -310,10 +314,11 @@ class MAPPO:
             adv[t] = last
         return adv, adv + val
 
-    def update(self, buf):
+    def update(self, buf, teams=None):
         cfg = self.cfg
+        teams = list(self.critics) if teams is None else teams
         data, old_norm = {}, {}
-        for team in self.critics:
+        for team in teams:
             adv, ret = self.advantages(buf, team)
             old_norm[team] = self.vnorm[team].normalize(np.stack(buf["values"][team])).reshape(-1)
             self.vnorm[team].update(ret)
@@ -321,7 +326,7 @@ class MAPPO:
 
         # flatten per role (actor) and per team (critic)
         actor_batches = {}
-        for r in self.ag.roles:
+        for r in [r for r in self.ag.roles if TEAM_OF_ROLE[r] in teams]:
             team = TEAM_OF_ROLE[r]
             members = self.ag.members[r]
             pos = [self.teams[team].index(a) for a in members]
@@ -333,7 +338,7 @@ class MAPPO:
             actor_batches[r] = (x.reshape(-1, x.shape[-1]), torch.as_tensor(acts.reshape(-1)),
                                 torch.as_tensor(lps.reshape(-1)), torch.as_tensor(adv.reshape(-1), dtype=torch.float32))
         critic_batches = {}
-        for team in self.critics:
+        for team in teams:
             x = torch.cat([self.critic_input(team, s, o, t)
                            for t, (s, o) in enumerate(zip(buf["states"], buf["obs"]))])
             ret = self.vnorm[team].normalize(data[team][1]).reshape(-1)
@@ -365,7 +370,7 @@ class MAPPO:
                     logs[f"vloss_{team}"] = vl.item()
                 self.opt.zero_grad()
                 loss.backward()
-                for team in self.critics:  # actors and critic of each team clipped separately (as in reference MAPPO)
+                for team in teams:  # actors and critic of each team clipped separately (as in reference MAPPO)
                     actor_params = [p for r in self.ag.roles if TEAM_OF_ROLE[r] == team
                                     for p in self.ag.actors[r].parameters()]
                     nn.utils.clip_grad_norm_(actor_params, cfg.max_grad_norm)
@@ -407,14 +412,22 @@ class MAPPO:
         writer, f = None, log_path.open("w", newline="")
         t0 = time.time()
         while self.env_steps < cfg.total_steps:
-            buf, episodes = self.collect()
+            vs_heur = len(self.critics) == 2 and self.mix_rng.random() < cfg.prey_vs_heuristic
+            if vs_heur:  # only the prey play and learn; predators are heuristic this iteration
+                keep = self.ag.roles
+                self.ag.roles = [r for r in keep if TEAM_OF_ROLE[r] == "good"]
+                buf, episodes = self.collect(opponent=self.heur_adv, learn=True)
+                self.ag.roles = keep
+            else:
+                buf, episodes = self.collect()
             self.env_steps += cfg.n_envs * self.T
             self.iteration += 1
-            row = {"iteration": self.iteration, "env_steps": self.env_steps, "time_s": round(time.time() - t0, 1)}
+            row = {"iteration": self.iteration, "env_steps": self.env_steps, "time_s": round(time.time() - t0, 1),
+                   "prey_vs_heuristic": int(vs_heur)}
             s = summarize(episodes)
             row.update({k: s[k] for k in ("adv_return", "good_return", "caught", "catches", "out_frac", "food_frac",
                                           "hidden_frac", "say_entropy")})
-            row.update(self.update(buf))
+            row.update(self.update(buf, ["good"] if vs_heur else None))
             if self.iteration % cfg.eval_every == 0 or self.env_steps >= cfg.total_steps:
                 for kind in ("heuristic", "random"):
                     row.update(self.evaluate(kind))
