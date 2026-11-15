@@ -19,6 +19,9 @@ args_of() {  # bash 3 (macOS) has no associative arrays
     v2_food)         echo "--hidden 128 --layers 2 --critic central --food-shaping 2" ;;
     v2_entropy)      echo "--hidden 128 --layers 2 --critic central --entropy-good 0.03" ;;
     v2_food_entropy) echo "--hidden 128 --layers 2 --critic central --food-shaping 2 --entropy-good 0.03" ;;
+    env_f0)          echo "--hidden 128 --layers 2 --critic central --num-forests 0" ;;
+    env_f4)          echo "--hidden 128 --layers 2 --critic central --num-forests 4" ;;
+    env_ep50)        echo "--hidden 128 --layers 2 --critic central --max-cycles 50" ;;
     *) echo "unknown config $1" >&2; exit 1 ;;
   esac
 }
@@ -33,11 +36,12 @@ for seed in $SEEDS; do
     jobs+=("$run|$(args_of $name) --seed $seed --steps $STEPS")
   done
 done
-printf '%s\n' "${jobs[@]}" | xargs -P 2 -I{} bash -c '
+export WORKERS="${WORKERS:-7}"
+printf '%s\n' "${jobs[@]}" | xargs -P "${PAR:-2}" -I{} bash -c '
   run="${1%%|*}"; args="${1#*|}"
   mkdir -p runs/$run
   echo "$(date +%H:%M) start $run"
-  uv run python scripts/train_mappo.py --run $run --train adv good --workers 7 --eval-every 50 $args \
+  uv run python scripts/train_mappo.py --run $run --train adv good --workers "${WORKERS:-7}" --eval-every 50 $args \
     > runs/$run/train.log 2>&1
   rc=$?
   echo "$(date +%H:%M) done  $run (exit $rc)"
