@@ -1,7 +1,5 @@
 # MPE2 Simple World Comm: RL course project (2026Z)
 
-Jerzy Czarnecki, Mateusz Małachowski
-
 Environment: [`simple_world_comm_v3`](https://mpe2.farama.org/) from MPE2 (PettingZoo API). It has 4 predators, including a leader that can send messages, and 2 faster prey, plus food, forests and an obstacle. Both teams are trained at the same time (self-play) with our own MAPPO implementation.
 
 <img src="docs/figures/map_seed0.png" width="260">
@@ -86,7 +84,3 @@ uv run python scripts/eval_length.py runs/v2_long_s{0,1,2}/final.pt
 
 cd presentation && tectonic checkpoint2.tex
 ```
-
-## AI usage (required in the final report)
-
-Claude (Claude Code) wrote most of the code (environment exploration, baselines, MAPPO, experiment and evaluation scripts) and drafts of the slides, following our instructions. We chose the experiments, reviewed the code and checked the results.
