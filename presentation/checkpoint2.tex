@@ -76,6 +76,33 @@
 \end{frame}
 
 % ---------------------------------------------------------------------------
+\begin{frame}{Przeciwnicy referencyjni: agenci losowi i heurystyczni}
+  \small
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \textbf{Heurystyczni drapieżnicy}
+      \begin{itemize}
+        \item każdy idzie prosto do najbliższej widocznej ofiary
+        \item gdy żadnej nie widzi (ofiary w lesie): losowy ruch
+        \item lider porusza się tak samo i zawsze wysyła ten sam komunikat, więc drużyna się nie komunikuje
+      \end{itemize}
+      \textbf{Agenci losowi}: każdy krok to losowa akcja
+    \end{column}
+    \begin{column}{0.46\textwidth}
+      \textbf{Heurystyczne ofiary}
+      \begin{itemize}
+        \item idą do najbliższego jedzenia
+        \item odpychają je drapieżnicy bliżej niż 0,5 (tym mocniej, im bliżej)
+        \item przy krawędzi areny zawracają do środka
+      \end{itemize}
+      \textbf{Wspólne}: obie heurystyki widzą tylko własną obserwację agenta, czyli to samo co aktorzy MAPPO
+    \end{column}
+  \end{columns}
+  \vspace{6pt}
+  {\small heurystyka kontra heurystyka: drapieżnicy 18,1 nagrody, złapanie w 91\% epizodów}
+\end{frame}
+
+% ---------------------------------------------------------------------------
 \begin{frame}{Metodologia ewaluacji}
   \small
   \begin{columns}[T]
@@ -162,6 +189,33 @@
     \item ofiary MAPPO przebywają w lesie w 21\% kroków (heurystyczne: 19\%), więc lasu prawie nie wykorzystują
     \item lider korzysta z różnych komunikatów (entropia 1,5 bita z maks. 2), heurystyczny lider zawsze wysyła ten sam
   \end{itemize}
+\end{frame}
+
+% ---------------------------------------------------------------------------
+\begin{frame}{Próba: nagroda za jedzenie dla ofiar (reward shaping)}
+  \small
+  \begin{itemize}
+    \item ofiary MAPPO prawie nie jedzą: na jedzeniu ok. 1\% kroków
+    \item pomysł: w treningu dodatkowa nagroda za zbliżanie się do jedzenia
+      $c\,(d - \gamma\, d')$, $c=2$ ($d$, $d'$: odległość do jedzenia przed i po kroku)
+    \item to kształtowanie nagrody oparte na potencjale (Ng i in., 1999): nie zmienia optymalnej polityki;
+      ocena zawsze na oryginalnej nagrodzie
+    \item test: tylko ofiary uczą się przeciwko heurystycznym drapieżnikom, 10 mln kroków
+  \end{itemize}
+  \vspace{4pt}
+  \centering
+  \begin{tabular}{@{}lrr@{}}
+    \toprule
+    & bez dodatkowej nagrody & z dodatkową nagrodą \\
+    \midrule
+    kroki na jedzeniu & 1,3\% & 2,1\% \\
+    epizody ze złapaniem & 71\% & 79\% \\
+    nagroda ofiar & $-5{,}1$ & $-5{,}7$ \\
+    \bottomrule
+  \end{tabular}\\[6pt]
+  \raggedright
+  ofiary jedzą trochę więcej, ale są częściej łapane: +2 za jedzenie nie jest warte ryzyka $-5$ za kontakt
+  z drapieżnikiem, więc dalej trenujemy bez tej nagrody
 \end{frame}
 
 % ---------------------------------------------------------------------------
