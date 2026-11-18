@@ -25,6 +25,10 @@ ROOT = Path(__file__).resolve().parents[1]
 LABELS = {
     "mappo_h128": "MAPPO 2×128", "ippo_h128": "IPPO 2×128", "mappo_h64": "MAPPO 2×64",
     "mappo_h256": "MAPPO 2×256", "mappo_h256x3": "MAPPO 3×256",
+    "v2_mappo": "MAPPO", "v2_food": "MAPPO + jedzenie", "v2_entropy": "MAPPO + entropia",
+    "v2_food_entropy": "MAPPO + jedzenie + entropia",
+    "v2_long": "MAPPO 100 mln kroków",
+    "v2_mix": "MAPPO + ofiary vs heurystyka (50%)",
 }
 # (column, short name)
 METRICS = [
