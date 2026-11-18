@@ -908,7 +908,6 @@ name = "reinforcementlearning"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
-    { name = "gymnasium" },
     { name = "imageio", extra = ["ffmpeg"] },
     { name = "matplotlib" },
     { name = "mpe2" },
@@ -920,7 +919,6 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "gymnasium", specifier = ">=1.4.0" },
     { name = "imageio", extras = ["ffmpeg"], specifier = ">=2.38.1" },
     { name = "matplotlib", specifier = ">=3.11.2" },
     { name = "mpe2", specifier = ">=1.1.1" },
